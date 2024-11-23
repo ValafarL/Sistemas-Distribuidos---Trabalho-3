@@ -28,6 +28,9 @@ class Votante:
     def att_participantes(self, p):
         self.participantes = p
         print(f"participantes att para: {self.participantes}")
+    
+    def recebe_notificacao(self):
+        print("notificacao de novos dados")
 
 def iniciar_votante():
     daemon = Pyro5.api.Daemon()

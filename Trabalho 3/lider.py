@@ -8,7 +8,7 @@ class Lider:
     def __init__(self):
         self.quorum = 2
         self.offset = 0
-        self.participantes = 1
+        self.participantes = 0
         self.brokers_votantes = []
         self.brokers_observadores = []
         self.topico = 'topico'
@@ -16,13 +16,18 @@ class Lider:
         self.epoca = "Lider_Epoca1"
         self.ID = 1
         self.estado = "líder"
-        self.logs = {self.topico: {self.particao: {self.epoca: []}},
-                     "outros":[]
-                     }
+        self.logs = {self.topico: {self.particao: {self.epoca: {
+            "offset": self.offset,
+            "confirmadoAte": 0,
+            "msgs": []
+        }}}}
+        self.confirmacao = {self.topico: {self.particao: {self.epoca: [
+            []] # armazena os IDs dos confirmados em um array para cada offset, o primeiro array é acessado usando offset como index 
+        }}}
         self.brokers = {}
         self.ultimo_heartbeat = {}
         self.heartbeat_timer = 0
-        thread_verifica_heartbeats = threading.Thread(target=self.confere_votantes)
+        thread_verifica_heartbeats = threading.Thread(target=self.verifica_heartbeats)
         thread_verifica_heartbeats.start()
     
     def registra_broker(self, uri, estado):
@@ -42,12 +47,14 @@ class Lider:
             print("Topico inexistente")
         if particao not in self.logs[topico]:
             print("Particicao inexistente")
-        self.logs[self.topico][self.particao][self.epoca].append(mensagem)
+        self.logs[self.topico][self.particao][self.epoca]["msgs"].append(mensagem)
+        self.confirmacao[self.topico][self.particao][self.epoca].append([])
         print(f"publicacoes atualizadas:")
         self.incrementa_offset()
         print("offset",self.offset)
         self.notifica_votantes()
-        
+
+            
     def envia_publicacao_consumidor(self):
         print(f" consumindo {self.logs[self.topico][self.particao]}")
         if self.logs[self.topico][self.particao]:
@@ -79,32 +86,61 @@ class Lider:
 
     def incrementa_offset(self):
         self.offset = self.offset + 1
+        self.logs[self.topico][self.particao][self.epoca]["offset"] = self.offset
     
-    def requisicao_dados(self, epoca, offset, uri):
-        if(self.verifica_offset(offset)):
+    def requisicao_dados(self, epoca, offset, uri):# terminar de arrumar aqui
+        if(self.verifica_requisicao(epoca, offset)):
             return{"dados": 
-            { "offset": 0,
-                "logs": []
+            { 
+                "epoca": self.epoca,
+                "offset": self.offset,
+                "msgs": self.logs[self.topico][self.particao][self.epoca]["msgs"][offset:self.offset]
             }}
         else:
-            return {"offsetMax": self.offset}
-    def verifica_offset(self,offset):
-        if self.offset > offset:
+            return {"erro": {
+                "epocaMAX": self.epoca,
+                "offsetMAX": self.offset
+            }}
+        
+    def recebe_confirmacao(self, confirmacao):
+        topico = confirmacao["topico"]
+        particao = confirmacao["particao"]
+        epoca = confirmacao["epoca"]
+        offset = confirmacao["offset"]
+        id_ = confirmacao["id"]
+        
+        confirmacoes = self.confirmacao[topico][particao][epoca][offset]
+        confirmadoAte = self.logs[topico][particao][epoca]["confirmadoAte"]
+
+        if len(confirmacoes) < 2:
+            if id_ not in confirmacoes:
+                confirmacoes.append(id_)
+                print(f"O ID: {id_} confirmou o offset: {offset}")
+                if len(confirmacoes) >= 2 and offset - confirmadoAte == 1:
+                    confirmadoAte["confirmadoAte"] = offset
+                    print(f"Todos os votantes confirmaram o offset: {offset}")
+            else:
+                print(f"O ID: {id_} já confirmou o offset: {offset}")
+
+        #if len(self.confirmacao[confirmacao["topico"]][confirmacao["particao"]][confirmacao["epoca"]][confirmacao["offset"]]) < 2:
+        #    if confirmacao["id"] not in self.confirmacao[confirmacao["topico"]][confirmacao["particao"]][confirmacao["epoca"][confirmacao["offset"]]]:
+        #        self.confirmacao[confirmacao["topico"]][confirmacao["particao"]][confirmacao["epoca"]][confirmacao["offset"]].append(confirmacao["id"])
+        #        if (len(self.confirmacao[confirmacao["topico"]][confirmacao["particao"]][confirmacao["epoca"]]) >= 2
+        #        and confirmacao["offset"] - 
+        #        self.logs[confirmacao["topico"]][confirmacao["particao"]][confirmacao["epoca"]]["confirmadoAte"]
+        #        == 1):
+        #            self.logs[confirmacao["topico"]][confirmacao["particao"]][confirmacao["epoca"]]["confirmadoAte"] = confirmacao["offset"]
+        #        print()
+        #    else:
+        #        print(f"O ID: {confirmacao["id"]} ja confirmour o offset:{confirmacao["offset"]}")
+
+    def verifica_requisicao(self,epoca, offset):
+        if epoca in self.logs[self.topico][self.particao] and offset <= self.logs[self.topico][self.particao][epoca]["offset"]:
+            print("epoca e offset estão de acordo com os logs")
             return True
         return False
     def envia_mensagem_votante(self,offset):
         print()
-    
-   # def verifica_heartbeats(self):
-    #    print("verificao de hearbeat iniciado")
-    #    while True:
-    #        if (self.heartbeat_timer >= 5):
-    #            self.heartbeat_timer = 0
-    #        time.sleep(1)
-    #        self.heartbeat_timer += 1
-    #def confirma_heartbeat(self, ack):
-    #    if(ack):
-    #        print()
 
             
     def recebe_heartbeat(self, uri):
@@ -113,7 +149,7 @@ class Lider:
             print(f"heartbeat recebido de {uri}")
 
 
-    def confere_votantes(self):
+    def verifica_heartbeats(self):
         while True:
             time.sleep(1)
             tempo_atual = time.time()

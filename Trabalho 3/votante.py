@@ -13,6 +13,11 @@ class Votante:
         self.ID = 2
         self.estado = "votante"
         self.logs = {self.epoca: []}
+        self.logs = {self.topico: {self.particao: {self.epoca: {
+            "offset": self.offset,
+            "msgs": []
+        }}}
+                     }
         self.publicacoes = 0
         self.lider = lider
         thread_heartbeat = threading.Thread(target=self.heartbeat_monitor)
@@ -29,19 +34,40 @@ class Votante:
 
     def recebe_notificacao(self):
         print("notificacao de novos dados")
-        self.requisicao_dados()
+        self.requisita_dados()
 
     def incrementa_offset(self):
         self.offset = self.offset + 1  
 
-    def requisicao_dados(self):
+    def requisita_dados(self):
         self.incrementa_offset
-        resposta = self.lider.requisicao_dados(self.epoca, 0, self.uri)
-        if("offsetMax" in  resposta):
-            print()
-        elif("dados" in resposta):
-            print()
-
+        erro = self.lider.requisicao_dados(self.epoca, self.offset+1, self.uri)
+        if(erro):
+            erro = self.lider.requisicao_dados(erro["erro"]["epocaMAX"], erro["erro"]["offsetMax"], self.uri)
+        #elif("dados" in erro):
+        #    print(f"dados antes de att: {self.logs}")
+        #    self.logs[self.topico][self.particao][self.epoca]["offset"] = erro["dados"]["offset"]
+        #    self.logs[self.topico][self.particao][self.epoca]["msgs"].append(erro["dados"]["msgs"])
+        #    print(f"dados atualizados nos logs do votante: {self.logs}")
+            
+    def recebe_dados(self, dados):
+        if(dados):
+            self.logs[self.topico][self.particao][self.epoca]["offset"] = dados["offset"]
+            self.logs[self.topico][self.particao][self.epoca]["msgs"].append(["msgs"])
+            self.offset = dados["offset"]
+            proxyLider = Pyro5.api.Proxy(self.liderURI)
+            proxyLider.recebe_confirmacao({
+                "id":self.ID,
+                "topico":"topico",
+                "particap": "particao",
+                "epoca":self.epoca,
+                "offset":self.offSet
+            })
+            print("dados recebidos, confirmacao enviada")
+            return True
+        else:
+            print("dados vazios")
+            return False
     def lider_offset_max(self, offset):
         print('')
 

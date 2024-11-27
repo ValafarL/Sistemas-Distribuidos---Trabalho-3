@@ -15,7 +15,7 @@ def inicia_publicador():
             print(f"Enviando publicacao N:{publicacoes}")
         except ValueError :
             print(ValueError)
-        time.sleep(1)
+        time.sleep(3)
 
 if __name__ == "__main__":
     inicia_publicador()

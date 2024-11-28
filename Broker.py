@@ -20,6 +20,9 @@ class Broker:
             "msgs": []
         }}}
                      }
+        self.registraConfirmados = {self.topico: {self.particao: {self.epoca: [
+            []] # armazena os IDs dos confirmados em um array para cada offset, o primeiro array é acessado usando offset como index 
+        }}}
         self.publicacoes = 0
         self.lider = lider
         thread_heartbeat = threading.Thread(target=self.heartbeat_monitor)
@@ -65,7 +68,9 @@ class Broker:
         else:
             print("dados vazios")
             return False
-        
+    def recebe_confirmacao(self, dados):
+        self.confirmacao[dados['topico']][dados['topico']][dados['topico']][dados['topico']] = dados['id_confirmados']
+        print(f"votante {self.id} recebeu a confirmacao, ids dos confirmados: {self.confirmacao[dados['topico']][dados['topico']][dados['topico']][dados['topico']]}")
     #requisito 3.4
     def recebe_dados_observador(self, dados):
         if(dados):

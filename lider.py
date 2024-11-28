@@ -8,7 +8,7 @@ class Lider:
     def __init__(self):
         self.quorum = 2
         self.offset = 0
-        self.participantes = 0
+        self.participantes = 1
         self.brokers_votantes = []
         self.brokers_observadores = []
         self.topico = 'topico'
@@ -146,12 +146,28 @@ class Lider:
             if id_ not in confirmacoes:
                 self.confirmacao[topico][particao][epoca][offset].append(id_)
                 print(f"O ID: {id_} confirmou o offset: {offset}")
-                if len(confirmacoes) >= 2 and offset - confirmadoAte == 1:
+                if len(confirmacoes) >= self.participantes//2 + 1 and offset - confirmadoAte == 1:
                     self.logs[topico][particao][epoca]["confirmadoAte"] = offset
                     print(f"Todos os votantes confirmaram o offset: {offset}")
+                    self.envia_confirmacao_votantes(offset)
                     #self.envia_dados_observador()
             else:
                 print(f"O ID: {id_} já confirmou o offset: {offset}")
+    def envia_confirmacao_votantes(self, offset):
+        print("enviando confrimacao para todos os votantes")
+        for votante in self.brokers_votantes:
+            if(votante):
+                try:
+                    votante = Pyro5.api.Proxy(votante["uri"])
+                    votante.recebe_confirmacao({
+                        "topico":"topico",
+                        "particao": "particao",
+                        "epoca":self.epoca,
+                        "offset":self.offset,
+                        "id_confirmados": self.confirmacao['topico']['particao'][self.epoca][offset]
+                    })
+                except ConnectionRefusedError :
+                    print(f"Conexao perdido com o votante: {votante['id']}")
     #requisito 3.4
     def envia_dados_observador(self):
         print("enviando dados para o observador")

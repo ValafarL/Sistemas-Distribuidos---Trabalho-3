@@ -121,6 +121,8 @@ class Lider:
         proxyV = Pyro5.api.Proxy(uri)
         proxyV.recebe_dados({ 
                 "epoca": self.epoca,
+                "topico": self.topico,
+                "particao": self.particao,
                 "offset": self.offset,
                 "msgs": self.logs[self.topico][self.particao][self.epoca]["msgs"][offset:self.offset]
             })
@@ -141,18 +143,15 @@ class Lider:
         
         confirmacoes = self.confirmacao[topico][particao][epoca][offset]
         confirmadoAte = self.logs[topico][particao][epoca]["confirmadoAte"]
-
-        if len(confirmacoes) < 2:
-            if id_ not in confirmacoes:
-                self.confirmacao[topico][particao][epoca][offset].append(id_)
-                print(f"O ID: {id_} confirmou o offset: {offset}")
-                if len(confirmacoes) >= self.participantes//2 + 1 and offset - confirmadoAte == 1:
-                    self.logs[topico][particao][epoca]["confirmadoAte"] = offset
-                    print(f"Todos os votantes confirmaram o offset: {offset}")
-                    self.envia_confirmacao_votantes(offset)
-                    #self.envia_dados_observador()
-            else:
-                print(f"O ID: {id_} já confirmou o offset: {offset}")
+        if id_ not in confirmacoes:
+            self.confirmacao[topico][particao][epoca][offset].append(id_)
+            print(f"O ID: {id_} confirmou o offset: {offset}")
+            if len(confirmacoes) >= self.participantes//2 + 1 and offset - confirmadoAte == 1:
+                self.logs[topico][particao][epoca]["confirmadoAte"] = offset
+                print(f"Todos os votantes confirmaram o offset: {offset}")
+                self.envia_confirmacao_votantes(offset)
+        else:
+            print(f"O ID: {id_} já confirmou o offset: {offset}")
     def envia_confirmacao_votantes(self, offset):
         print("enviando confrimacao para todos os votantes")
         for votante in self.brokers_votantes:

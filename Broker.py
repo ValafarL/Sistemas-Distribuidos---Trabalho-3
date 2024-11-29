@@ -55,6 +55,7 @@ class Broker:
             self.logs[self.topico][self.particao][self.epoca]["msgs"].append(dados["msgs"])
             self.logs[self.topico][self.particao][self.epoca]["offset"] = dados["offset"]
             self.offset = dados["offset"]
+            self.registraConfirmados[dados['topico']][dados['particao']][dados['epoca']].append([])
             proxyLider = Pyro5.api.Proxy(self.liderURI)
             proxyLider.recebe_confirmacao({
                 "id": self.id,
@@ -69,8 +70,9 @@ class Broker:
             print("dados vazios")
             return False
     def recebe_confirmacao(self, dados):
-        self.confirmacao[dados['topico']][dados['topico']][dados['topico']][dados['topico']] = dados['id_confirmados']
-        print(f"votante {self.id} recebeu a confirmacao, ids dos confirmados: {self.confirmacao[dados['topico']][dados['topico']][dados['topico']][dados['topico']]}")
+        self.registraConfirmados[dados['topico']][dados['particao']][dados['epoca']][dados['offset']] = dados['id_confirmados']
+        print(f"votante {self.id} recebeu a confirmacao do offset: {dados["offset"]}, ids dos confirmados: {self.registraConfirmados[dados['topico']][dados['particao']][dados['epoca']][dados['offset']]}")
+        print(f"conrimados att para: {self.registraConfirmados[dados['topico']][dados['particao']][dados['epoca']]}")
     #requisito 3.4
     def recebe_dados_observador(self, dados):
         if(dados):

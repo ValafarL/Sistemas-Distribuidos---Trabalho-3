@@ -58,9 +58,7 @@ class Lider:
             self.participantes = self.participantes + 1
             self.ultimo_heartbeat[id] = time.time()
             thread1 = threading.Thread(target=self.atualiza_votantes)
-            thread1.start()
-            #self.atualiza_votantes()
-                    
+            thread1.start()                    
         elif(estado == 'observador'):
             self.brokers_observadores.append(uri)
     
@@ -74,30 +72,24 @@ class Lider:
         self.confirmacao[self.topico][self.particao][self.epoca].append([])
         print(f"publicacoes atualizadas:")
         self.incrementa_offset()
-        print("offset",self.offset)
-        #self.notifica_votantes()
 
     #requisito 1
     def envia_publicacao_consumidor(self):
-        print(f" consumindo {self.logs[self.topico][self.particao]}")
         if self.logs[self.topico][self.particao]:
             return self.logs[self.topico][self.particao][-1]
 
     #requisito 1, 3.
     def atualiza_votantes(self):
-        print("participantes att no LIDER")
         for votante in self.brokers_votantes:
             if(votante):
                 try:
                     votanteProxy = Pyro5.api.Proxy(votante["uri"])
                     votanteProxy.att_participantes(self.participantes)
-                    print(f"Participantes att no votante{votanteProxy}")
                 except Pyro5.errors.PyroError :
                     print(f"Erro ao att participantes nos votantes {Pyro5.errors.PyroError}")
                     print(votante['id'])
     #requisito 2.2
     def notifica_votantes(self):
-        print(self.brokers_votantes)
         for votante in self.brokers_votantes:
             if(votante):
                 try:
@@ -130,7 +122,6 @@ class Lider:
     #requisito 2.4
     def verifica_requisicao(self,epoca, offset):
         if epoca in self.logs[self.topico][self.particao] and offset <= self.logs[self.topico][self.particao][epoca]["offset"]:
-            print("epoca e offset estão de acordo com os logs")
             return True
         return False
     #requisito 2.6, 2.7
@@ -150,10 +141,8 @@ class Lider:
                 self.logs[topico][particao][epoca]["confirmadoAte"] = offset
                 print(f"Todos os votantes confirmaram o offset: {offset}")
                 self.envia_confirmacao_votantes(offset)
-        else:
-            print(f"O ID: {id_} já confirmou o offset: {offset}")
     def envia_confirmacao_votantes(self, offset):
-        print("enviando confrimacao para todos os votantes")
+        print("enviando confirmacao para todos os votantes")
         for votante in self.brokers_votantes:
             if(votante):
                 try:
@@ -173,7 +162,6 @@ class Lider:
         confirmado = self.logs[self.topico][self.particao][self.epoca]['confirmadoAte']
         for uri in self.brokers_observadores:
             if uri:
-                print('DENTRO DO IF')
                 proxyO = Pyro5.api.Proxy(uri)
                 proxyO.recebe_dados_observador({ 
                     "epoca": self.epoca,
@@ -194,13 +182,8 @@ class Lider:
             for votante in self.brokers_votantes:
                 if votante["id"] in self.ultimo_heartbeat:
                     if (tempo_atual - self.ultimo_heartbeat[votante["id"]] > 15):
-                        #print("tempo atual",tempo_atual)
-                        #print("tempo ultimo heartbeat",self.ultimo_heartbeat[votante["id"]])
-                        #print(tempo_atual - self.ultimo_heartbeat[votante["id"]])
-                        #print(votante)
                         thread_verifica_heartbeats = threading.Thread(target=self.remove_votante, args=[votante["id"]])
                         thread_verifica_heartbeats.start()
-                        print("Votantes atualizados")
     #requisito 3.2
     def remove_votante(self, id):
         for votante in self.brokers_votantes:
@@ -208,7 +191,6 @@ class Lider:
                 self.brokers_votantes.remove(votante)
                 print(f"Votante com ID {id} removido")
                 break
-        print("broker att apos remover: ", self.brokers_votantes)
         self.ultimo_heartbeat.pop(id)
         self.participantes = self.participantes - 1
         self.atualiza_votantes()
@@ -217,7 +199,6 @@ class Lider:
         while True:
             time.sleep(1)
             if self.verifica_quorum() and self.brokers_observadores:
-                print("entrou")
                 observadorURI = self.brokers_observadores.pop(0)
                 proxyO = Pyro5.api.Proxy(observadorURI)
                 proxyO.muda_estado()

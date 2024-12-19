@@ -35,7 +35,6 @@ class Broker:
     #requisito 1
     def att_participantes(self, p):
         self.participantes = p
-        print(f"participantes att para: {self.participantes}")
 
     #requisito 2.2
     def recebe_notificacao(self):
@@ -43,11 +42,15 @@ class Broker:
         if self.estado == "votante":
             self.requisita_dados()
 
-    #requisito 2.3
+    #requisito 2.3, 2.5
     def requisita_dados(self):
         proxyLider = Pyro5.api.Proxy(self.liderURI)
         dados_nova_requisicao = proxyLider.requisicao_dados(self.epoca, self.offset, self.uri)
-        if(dados_nova_requisicao):
+        if(dados_nova_requisicao): # se o offset e epoca estiverem desincronizados faz nova requisicao com estes dados corretos.
+            # trunka os logs baseado nos offset do lider
+            if(self.offset > dados_nova_requisicao["erro"]["offsetMax"]):
+                self.logs[self.topico][self.particao][self.epoca]["msgs"] = self.logs[self.topico][self.particao][dados_nova_requisicao["erro"]["epocaMAX"]]["msgs"][0:dados_nova_requisicao["erro"]["offsetMax"]]
+            self.registraConfirmados[dados_nova_requisicao["erro"]["epocaMAX"]][dados_nova_requisicao["erro"]["offsetMax"]]['particao'] = self.registraConfirmados[dados_nova_requisicao["erro"]["epocaMAX"]][dados_nova_requisicao["erro"]["offsetMax"]]['particao']
             dados_nova_requisicao = self.lider.requisicao_dados(dados_nova_requisicao["erro"]["epocaMAX"], dados_nova_requisicao["erro"]["offsetMax"], self.uri)
     #requisito 2.4, 2.6
     def recebe_dados(self, dados):
@@ -71,8 +74,7 @@ class Broker:
             return False
     def recebe_confirmacao(self, dados):
         self.registraConfirmados[dados['topico']][dados['particao']][dados['epoca']][dados['offset']] = dados['id_confirmados']
-        print(f"votante {self.id} recebeu a confirmacao do offset: {dados["offset"]}, ids dos confirmados: {self.registraConfirmados[dados['topico']][dados['particao']][dados['epoca']][dados['offset']]}")
-        print(f"conrimados att para: {self.registraConfirmados[dados['topico']][dados['particao']][dados['epoca']]}")
+
     #requisito 3.4
     def recebe_dados_observador(self, dados):
         if(dados):
